@@ -4,7 +4,7 @@
 #
 ################################################################################
 
-HAMLIB_VERSION = 3.3
+HAMLIB_VERSION = 4.4
 HAMLIB_SITE = https://github.com/Hamlib/Hamlib.git
 HAMLIB_SITE_METHOD = git
 HAMLIB_DEPENDENCIES = readline libusb
