@@ -1,0 +1,8 @@
+#!/bin/sh
+
+TIMEOUT=5
+
+for device in $@
+do
+    [ -e $device ] || inotifywait -qq --timeout $TIMEOUT -e create --include $device /dev/
+done

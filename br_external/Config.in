@@ -1,1 +1,2 @@
-source "$BR2_EXTERNAL_MINIMAL_RPI_PATH/package/squeezenfc/Config.in"
+source "$BR2_EXTERNAL_PIDGEY_PATH/package/hamlib/Config.in"
+source "$BR2_EXTERNAL_PIDGEY_PATH/package/direwolf/Config.in"
