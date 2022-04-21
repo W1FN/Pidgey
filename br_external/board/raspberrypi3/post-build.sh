@@ -41,3 +41,8 @@ if [ -L ${TARGET_DIR}/etc/dropbear ]; then
     rm ${TARGET_DIR}/etc/dropbear
     mkdir ${TARGET_DIR}/etc/dropbear
 fi
+
+# install RAUC certificate
+install -D -m 0644 $BR2_EXTERNAL_PIDGEY_PATH/rauc-update.cert.pem ${TARGET_DIR}/etc/rauc/keyring.pem
+
+cp $BR2_EXTERNAL_PIDGEY_PATH/rauc-update.{key,cert}.pem ${BINARIES_DIR}/
