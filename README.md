@@ -18,3 +18,5 @@ Specifically configured for the Twin State Radio Club (W1FN), but should be rela
 - Based heavily on [naguirre/binky_buildroot](https://github.com/naguirre/binky_buildroot) and [romainreignier/minimal_raspberrypi_buildroot](https://github.com/romainreignier/minimal_raspberrypi_buildroot)
 - direwolf/hamlib packages based on [markuslindenberg/aprspi](https://github.com/markuslindenberg/aprspi)
 - UDRC/DRAWS specifics taken from [nwdigitalradio/n7nix](https://github.com/nwdigitalradio/n7nix)
+- U-Boot/RAUC config bits from [cdsteinkuehler/br2rauc](https://github.com/cdsteinkuehler/br2rauc)
+- Kernel config from [nerves-project/nerves_system_rpi3](https://github.com/nerves-project/nerves_system_rpi3)
