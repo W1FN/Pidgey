@@ -2,6 +2,20 @@ test -n "${BOOT_ORDER}" || setenv BOOT_ORDER "A B"
 test -n "${BOOT_A_LEFT}" || setenv BOOT_A_LEFT 3
 test -n "${BOOT_B_LEFT}" || setenv BOOT_B_LEFT 3
 
+# RPi firmware uses a dynamic fdt_addr, but U-Boot does not use the fw
+# provided address if fdt_addr is already defined in the environment!
+# Copy fdt_addr to a local variable and delete the environment variable
+# so it never gets accidentally saved:
+fdt_addr=${fdt_addr}
+env delete fdt_addr
+
+# Get bootargs from firmware fdt
+fdt addr ${fdt_addr}
+fdt get value bootargs_fw /chosen bootargs
+# store in a local variable, but do not persist
+bootargs_fw=${bootargs_fw}
+env del bootargs_fw
+
 setenv bootargs
 for BOOT_SLOT in "${BOOT_ORDER}"; do
   if test "x${bootargs}" != "x"; then
