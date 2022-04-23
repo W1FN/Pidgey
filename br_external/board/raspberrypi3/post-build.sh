@@ -49,3 +49,28 @@ fi
 install -D -m 0644 $BR2_EXTERNAL_PIDGEY_PATH/rauc-update.cert.pem ${TARGET_DIR}/etc/rauc/keyring.pem
 
 cp $BR2_EXTERNAL_PIDGEY_PATH/rauc-update.{key,cert}.pem ${BINARIES_DIR}/
+
+# Remove unused firmware files
+UNNEEDED_FILES="brcmfmac43143.bin \
+    brcmfmac43143-sdio.bin \
+    brcmfmac43236b.bin \
+    brcmfmac43241b0-sdio.bin \
+    brcmfmac43241b4-sdio.bin \
+    brcmfmac43241b5-sdio.bin \
+    brcmfmac43242a.bin \
+    brcmfmac43340-sdio.bin \
+    brcmfmac43362-sdio.bin \
+    brcmfmac43430a0-sdio.bin \
+    brcmfmac43569.bin \
+    brcmfmac43570-pcie.bin \
+    brcmfmac43602-pcie.ap.bin \
+    brcmfmac43602-pcie.bin"
+
+if [ -d ${TARGET_DIR}/lib/firmware/brcm ]; then
+    cd ${TARGET_DIR}/lib/firmware/brcm/
+    for f in $UNNEEDED_FILES; do
+        if [ -f $f ]; then
+            rm $f
+        fi
+    done
+fi
