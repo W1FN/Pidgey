@@ -9,15 +9,19 @@ start() {
     # generate ssh keys on first boot
     if [ ! -e $CONF_DIR/dropbear/dropbear_ecdsa_host_key -o ! -e $CONF_DIR/dropbear/dropbear_ed25519_host_key ]
     then
+        printf "Initializing SSH Host Keys: "
+
         mount -o remount,rw /boot
         mkdir -p $CONF_DIR/dropbear
         dropbearkey -t ecdsa -f $CONF_DIR/dropbear/dropbear_ecdsa_host_key
         dropbearkey -t ed25519 -f $CONF_DIR/dropbear/dropbear_ed25519_host_key
         mount -o remount,ro /boot
-        echo asdf >> /tmp/config.log
+        [ $? = 0 ] && echo "OK" || echo "FAIL"
     fi
 
+    printf "Copying configuration from /boot/config/: "
     cp -a $CONF_DIR/* /etc/
+    [ $? = 0 ] && echo "OK" || echo "FAIL"
 }
 
 case "$1" in
