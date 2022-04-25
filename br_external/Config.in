@@ -1,2 +1,1 @@
-source "$BR2_EXTERNAL_PIDGEY_PATH/package/hamlib/Config.in"
 source "$BR2_EXTERNAL_PIDGEY_PATH/package/direwolf/Config.in"
