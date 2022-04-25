@@ -1,0 +1,27 @@
+# https://www.raspberrypi.com/documentation/computers/config_txt.html#dtoverlay
+# Prevents loading HAT overlay, which breaks on the UDRC for unclear reasons
+dtoverlay=
+
+# enable the watchdog
+dtparam=watchdog=on
+
+start_file=start.elf
+fixup_file=fixup.dat
+kernel=u-boot.bin
+
+# Disable overscan assuming the display supports displaying the full resolution
+# If the text shown on the screen disappears off the edge, comment this out
+disable_overscan=1
+
+# How much memory in MB to assign to the GPU
+gpu_mem=100
+
+# slightly improves boot speed
+disable_poe_fan=1
+
+# fixes rpi (3B, 3B+, 3A+, 4B and Zero W) ttyAMA0 serial console
+dtoverlay=miniuart-bt
+
+# enable as appropriate:
+# dtoverlay=udrc
+# dtoverlay=draws,alsaname=udrc

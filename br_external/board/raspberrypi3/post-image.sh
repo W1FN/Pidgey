@@ -6,10 +6,6 @@ set -e
 mkdir -p "${BINARIES_DIR}/config"
 cp "${TARGET_DIR}/etc/"{hostname,wpa_supplicant.conf,direwolf.conf} "${BINARIES_DIR}/config"
 
-sed -i "${BINARIES_DIR}/rpi-firmware/config.txt" -e "s/kernel=zImage/kernel=u-boot.bin/"
-grep -qFx 'dtparam=watchdog=on' "${BINARIES_DIR}/rpi-firmware/config.txt" || \
-    sed -i "${BINARIES_DIR}/rpi-firmware/config.txt" -e '$a dtparam=watchdog=on'
-
 # run genimage
 BOARD_DIR="$(dirname $0)"
 BOARD_NAME="$(basename ${BOARD_DIR})"
