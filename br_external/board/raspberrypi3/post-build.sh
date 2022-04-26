@@ -29,9 +29,6 @@ if [ -e ${TARGET_DIR}/etc/inittab ]; then
     # # wait for devices to exist before mounting
     add_line /etc/inittab '/mount -a$/i' '::sysinit:/etc/init.d/waitmount /dev/mmcblk0p1 /dev/sda1 # wait for block devices'
 
-    # Load wifi module
-    add_line /etc/inittab '/any rc scripts$/i' '::sysinit:/sbin/modprobe brcmfmac'
-
     # use hostname from /boot/config
     sed -i ${TARGET_DIR}/etc/inittab -e 's|/etc/hostname|/boot/config/hostname|'
 

@@ -13,7 +13,7 @@ DIREWOLF_DEPENDENCIES = alsa-lib \
 	$(if $(BR2_PACKAGE_GPSD),gpsd)
 
 define DIREWOLF_USERS
-	direwolf -1 direwolf -1 * - - dialout,gpio Direwolf TNC
+	direwolf -1 direwolf -1 * - - dialout,gpio,audio Direwolf TNC
 endef
 
 define DIREWOLF_INSTALL_CONFIG
