@@ -1,0 +1,46 @@
+#!/bin/sh
+
+set -e
+
+if [ "$#" -lt 1 ]
+then
+    echo "usage: $0 SOURCE..."
+    exit 1
+fi
+
+cleanup () {
+    :
+}
+
+if [ -z "$(awk '$2~/\/boot/' /proc/mounts)" ]
+then
+    echo "mounting /boot rw"
+    mount -o rw /boot
+    cleanup () {
+        echo "unmounting /boot"
+        umount /boot
+    }
+elif [ -z "$(awk '$2~/\/boot/ && $4~/(^|,)rw($|,)/' /proc/mounts)" ]
+then
+    echo "remounting /boot rw"
+    mount -o remount,rw /boot
+    cleanup () {
+        echo "remounting /boot ro"
+        mount -o remount,ro /boot
+    }
+fi
+
+for target in "$@"
+do
+    absolute_path="$(realpath $target)"
+
+    if [[ "$absolute_path" != '/etc/*' ]]
+    then
+        echo "Err: $absolute_path is not a member of /etc/"
+        exit 1
+    fi
+
+    (set -x ; cp -a "$absolute_path" /boot/config/"${absolute_path#/etc/}")
+done
+
+cleanup
