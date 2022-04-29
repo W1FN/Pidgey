@@ -30,7 +30,7 @@ if [ -e ${TARGET_DIR}/etc/inittab ]; then
     add_line /etc/inittab '/mount -a$/i' '::sysinit:/etc/init.d/waitmount /dev/mmcblk0p1 /dev/sda1 # wait for block devices'
 
     # use hostname from /boot/config
-    sed -i ${TARGET_DIR}/etc/inittab -e 's|/etc/hostname|/boot/config/hostname|'
+    sed -i ${TARGET_DIR}/etc/inittab -e 's| /etc/hostname| /boot/config/etc/hostname|'
 
     # unmount /boot after init
     add_line /etc/inittab '\|/etc/init.d/rcS$|a' '::once:/bin/umount /boot'

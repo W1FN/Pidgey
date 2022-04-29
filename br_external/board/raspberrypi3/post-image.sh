@@ -3,8 +3,8 @@
 set -e
 
 # copy over basic config templates
-mkdir -p "${BINARIES_DIR}/config"
-cp "${TARGET_DIR}/etc/"{hostname,wpa_supplicant.conf,direwolf.conf} "${BINARIES_DIR}/config"
+mkdir -p "${BINARIES_DIR}/config/etc"
+cp "${TARGET_DIR}/etc/"{hostname,wpa_supplicant.conf,direwolf.conf} "${BINARIES_DIR}/config/etc/"
 
 # run genimage
 BOARD_DIR="$(dirname $0)"

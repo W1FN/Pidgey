@@ -20,7 +20,7 @@ start() {
     fi
 
     printf "Copying configuration from /boot/config/: "
-    cp -a $CONF_DIR/* /etc/
+    cp -a $CONF_DIR/* /
     [ $? = 0 ] && echo "OK" || echo "FAIL"
 }
 
