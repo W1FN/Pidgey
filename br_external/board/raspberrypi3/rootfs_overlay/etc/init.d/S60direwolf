@@ -3,6 +3,8 @@
 # Starts Dire Wolf Sound Card-based AX.25 TNC
 #
 
+DIREWOLF_ARGS="-X 1"  # enable FX.25 by default
+
 # Allow a few customizations from a config file
 test -r /etc/default/direwolf && . /etc/default/direwolf
 
