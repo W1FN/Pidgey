@@ -19,7 +19,7 @@ if [ -e ${TARGET_DIR}/etc/fstab ]; then
     add_line /etc/fstab '$a' '/dev/mmcblk0p1	/boot		vfat	defaults,ro,noatime	0	2'
 
     # Mount first block device on /mnt, if it exists
-    add_line /etc/fstab '$a' '/dev/sda1	/mnt		vfat	defaults,noatime,nofail	0	2'
+    add_line /etc/fstab '$a' '/dev/sda1	/mnt		vfat	defaults,noatime,nofail,nodev,noexec,nosuid,umask=0000	0	2'
 fi
 
 if [ -e ${TARGET_DIR}/etc/inittab ]; then

@@ -19,12 +19,6 @@ endef
 define DIREWOLF_INSTALL_CONFIG
 	$(INSTALL) -D -m 0644 $(DIREWOLF_PKGDIR)/direwolf.conf \
 		$(TARGET_DIR)/etc/direwolf.conf
-
-	mkdir -p $(TARGET_DIR)/var/log/direwolf
-endef
-
-define DIREWOLF_PERMISSIONS
-	/var/log/direwolf d 755 direwolf direwolf - - - - -
 endef
 
 DIREWOLF_POST_INSTALL_TARGET_HOOKS += DIREWOLF_INSTALL_CONFIG
