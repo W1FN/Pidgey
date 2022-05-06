@@ -1,0 +1,2 @@
+# Rotate logs daily
+0 0 * * * /usr/sbin/logrotate
