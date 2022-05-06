@@ -18,14 +18,13 @@ start() {
     fi
 
     printf "Starting Dire Wolf: "
-    screen -list direwolf/DireWolf ||
-        su -s /bin/sh direwolf -c "screen -d -m -S DireWolf -- /usr/bin/direwolf $DIREWOLF_ARGS"
+    start-stop-daemon -S -q -m -b -p /var/run/direwolf.pid -c direwolf -x /bin/sh -- -c "/usr/bin/direwolf $DIREWOLF_ARGS 2>&1 >> /var/log/direwolf/direwolf.log"
     [ $? = 0 ] && echo "OK" || echo "FAIL"
 }
 
 stop() {
     printf "Stopping Dire Wolf: "
-    su -s /bin/sh direwolf -c "screen -S DireWolf -X quit"
+    start-stop-daemon -K -q -p /var/run/direwolf.pid
     [ $? = 0 ] && echo "OK" || echo "FAIL"
 }
 
