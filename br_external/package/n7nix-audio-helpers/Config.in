@@ -1,0 +1,7 @@
+config BR2_PACKAGE_N7NIX_AUDIO_HELPERS
+	bool "n7nix-audio-helpers"
+	select BR2_PACKAGE_ALSA_UTILS
+	help
+	  Audio setup scripts from n7nix.
+
+	  https://github.com/nwdigitalradio/n7nix/

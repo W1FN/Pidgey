@@ -1,1 +1,2 @@
 source "$BR2_EXTERNAL_PIDGEY_PATH/package/direwolf/Config.in"
+source "$BR2_EXTERNAL_PIDGEY_PATH/package/n7nix-audio-helpers/Config.in"
