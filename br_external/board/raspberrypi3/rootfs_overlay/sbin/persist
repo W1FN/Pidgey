@@ -34,7 +34,11 @@ for target in "$@"
 do
     absolute_path="$(realpath $target)"
 
-    (set -x ; install -pD "$absolute_path" /boot/config/"$absolute_path")
+    if ! diff -Ns /boot/config/"$absolute_path" "$absolute_path"
+    then
+        read -p "Press enter to copy this file, or ^C to abort"
+        (set -x ; install -pD "$absolute_path" /boot/config/"$absolute_path")
+    fi
 done
 
 cleanup
