@@ -36,6 +36,11 @@ if [ -e ${TARGET_DIR}/etc/inittab ]; then
     add_line /etc/inittab '\|/etc/init.d/rcS$|a' '::once:/bin/umount /boot'
 fi
 
+if [ -e ${TARGET_DIR}/etc/mdev.conf ]; then
+    # Give gpio group access to GPIO devices
+    add_line /etc/mdev.conf '$a' 'gpiochip[0-9]*	root:gpio 660'
+fi
+
 # replace dropbear config dir with real directory
 if [ -L ${TARGET_DIR}/etc/dropbear ]; then
     rm ${TARGET_DIR}/etc/dropbear

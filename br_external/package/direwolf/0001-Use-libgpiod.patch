@@ -1,0 +1,354 @@
+diff --git a/.gitignore b/.gitignore
+index 659c845..b917a7a 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -109,5 +109,5 @@ $RECYCLE.BIN/
+ *.dSYM
+ 
+ # cmake
+-build/
++build*/
+ tmp/
+\ No newline at end of file
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 9a1cb8e..930f271 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -143,8 +143,8 @@ elseif(APPLE)
+   message(STATUS "RPATH support: ${CMAKE_MACOSX_RPATH}")
+ 
+ elseif (WIN32)
+-  if(NOT VS2015 AND NOT VS2017)
+-    message(FATAL_ERROR "You must use Microsoft Visual Studio 2015 or 2017 as compiler")
++  if(NOT VS2015 AND NOT VS2017 AND NOT VS2019)
++    message(FATAL_ERROR "You must use Microsoft Visual Studio 2015 | 2017 | 2019 as compiler")
+   endif()
+ 
+   # compile with full multicore
+@@ -251,6 +251,14 @@ else()
+   set(HAMLIB_LIBRARIES "")
+ endif()
+ 
++find_package(gpiod)
++if(GPIOD_FOUND)
++  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DUSE_GPIOD")
++else()
++  set(GPIOD_INCLUDE_DIRS "")
++  set(GPIOD_LIBRARIES "")
++endif()
++
+ if(LINUX)
+   find_package(ALSA REQUIRED)
+   if(ALSA_FOUND)
+diff --git a/cmake/modules/FindCompiler.cmake b/cmake/modules/FindCompiler.cmake
+index f339a73..91e1b89 100644
+--- a/cmake/modules/FindCompiler.cmake
++++ b/cmake/modules/FindCompiler.cmake
+@@ -5,7 +5,9 @@ elseif(NOT DEFINED C_GCC AND CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+   set(C_GCC 1)
+ elseif(NOT DEFINED C_MSVC AND CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+   set(C_MSVC 1)
+-  if(MSVC_VERSION GREATER 1910 AND MSVC_VERSION LESS 1919)
++  if(MSVC_VERSION GREATER 1919 AND MSVC_VERSION LESS 1926)
++    set(VS2019 ON)
++  elseif(MSVC_VERSION GREATER 1910 AND MSVC_VERSION LESS 1919)
+     set(VS2017 ON)
+   elseif(MSVC_VERSION GREATER 1899 AND MSVC_VERSION LESS 1910)
+     set(VS2015 ON)
+diff --git a/cmake/modules/Findgpiod.cmake b/cmake/modules/Findgpiod.cmake
+new file mode 100644
+index 0000000..bf5be30
+--- /dev/null
++++ b/cmake/modules/Findgpiod.cmake
+@@ -0,0 +1,23 @@
++# - Try to find libgpiod
++# Once done this will define
++#  GPIOD_FOUND - System has libgpiod
++#  GPIOD_INCLUDE_DIRS - The libgpiod include directories
++#  GPIOD_LIBRARIES - The libraries needed to use libgpiod
++#  GPIOD_DEFINITIONS - Compiler switches required for using libgpiod
++
++find_package(PkgConfig)
++pkg_check_modules(PC_GPIOD QUIET gpiod)
++
++find_path(GPIOD_INCLUDE_DIR gpiod.h)
++find_library(GPIOD_LIBRARY NAMES gpiod)
++
++include(FindPackageHandleStandardArgs)
++# handle the QUIETLY and REQUIRED arguments and set GPIOD_FOUND to TRUE
++# if all listed variables are TRUE
++find_package_handle_standard_args(gpiod  DEFAULT_MSG
++                                  GPIOD_LIBRARY GPIOD_INCLUDE_DIR)
++
++mark_as_advanced(GPIOD_INCLUDE_DIR GPIOD_LIBRARY)
++
++set(GPIOD_LIBRARIES ${GPIOD_LIBRARY})
++set(GPIOD_INCLUDE_DIRS ${GPIOD_INCLUDE_DIR})
+diff --git a/src/CMakeLists.txt b/src/CMakeLists.txt
+index 46d3ac7..4f8e647 100644
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -8,6 +8,7 @@ include_directories(
+   ${UDEV_INCLUDE_DIRS}
+   ${PORTAUDIO_INCLUDE_DIRS}
+   ${CUSTOM_GEOTRANZ_DIR}
++  ${GPIOD_INCLUDE_DIRS}
+   )
+ 
+ if(WIN32 OR CYGWIN)
+@@ -127,6 +128,7 @@ target_link_libraries(direwolf
+   ${ALSA_LIBRARIES}
+   ${UDEV_LIBRARIES}
+   ${PORTAUDIO_LIBRARIES}
++  ${GPIOD_LIBRARIES}
+   )
+ 
+ if(WIN32 OR CYGWIN)
+diff --git a/src/audio.h b/src/audio.h
+index 53768f2..304ee83 100644
+--- a/src/audio.h
++++ b/src/audio.h
+@@ -28,7 +28,8 @@
+ enum ptt_method_e { 
+ 	PTT_METHOD_NONE,	/* VOX or no transmit. */
+ 	PTT_METHOD_SERIAL,	/* Serial port RTS or DTR. */
+-	PTT_METHOD_GPIO,	/* General purpose I/O, Linux only. */
++	PTT_METHOD_GPIO,	/* General purpose I/O using sysfs, deprecated after 2020, Linux only. */
++	PTT_METHOD_GPIOD,	/* General purpose I/O, using libgpiod, Linux only. */
+ 	PTT_METHOD_LPT,	    	/* Parallel printer port, Linux only. */
+ 	PTT_METHOD_HAMLIB, 	/* HAMLib, Linux only. */
+ 	PTT_METHOD_CM108 };	/* GPIO pin of CM108/CM119/etc.  Linux only. */
+@@ -249,7 +250,10 @@ struct audio_s {
+ 
+ 					/* This same field is also used for CM108 GPIO PTT which will */
+ 					/* have a name like /dev/hidraw1. */
+-			
++
++					/* This field is also used for GPIOD for which it can be a
++                    /* path, name, number, or label */
++
+ 	        ptt_line_t ptt_line;	/* Control line when using serial port. PTT_LINE_RTS, PTT_LINE_DTR. */
+ 	        ptt_line_t ptt_line2;	/* Optional second one:  PTT_LINE_NONE when not used. */
+ 
+diff --git a/src/config.c b/src/config.c
+index 8f9cb9f..06cdddf 100644
+--- a/src/config.c
++++ b/src/config.c
+@@ -1743,6 +1743,43 @@ void config_init (char *fname, struct audio_s *p_audio_config,
+ 	      }
+ 	      p_audio_config->achan[channel].octrl[ot].ptt_method = PTT_METHOD_GPIO;
+ #endif
++	    }
++	    else if (strcasecmp(t, "GPIOD") == 0) {
++#if __WIN32__
++	      text_color_set(DW_COLOR_ERROR);
++	      dw_printf ("Config file line %d: %s with GPIOD is only available on Linux.\n", line, otname);
++#else		
++#if defined(USE_GPIOD)
++	      t = split(NULL,0);
++	      if (t == NULL) {
++	        text_color_set(DW_COLOR_ERROR);
++	        dw_printf ("Config file line %d: Missing GPIO chip for %s.\n", line, otname);
++	        continue;
++	      }
++	      strlcpy(p_audio_config->achan[channel].octrl[ot].ptt_device, t,
++	              sizeof(p_audio_config->achan[channel].octrl[ot].ptt_device));
++
++	      t = split(NULL,0);
++	      if (t == NULL) {
++	        text_color_set(DW_COLOR_ERROR);
++	        dw_printf("Config file line %d: Missing GPIO number for %s.\n", line, otname);
++	        continue;
++	      }
++
++	      if (*t == '-') {
++	        p_audio_config->achan[channel].octrl[ot].out_gpio_num = atoi(t+1);
++		p_audio_config->achan[channel].octrl[ot].ptt_invert = 1;
++	      }
++	      else {
++	        p_audio_config->achan[channel].octrl[ot].out_gpio_num = atoi(t);
++		p_audio_config->achan[channel].octrl[ot].ptt_invert = 0;
++	      }
++	      p_audio_config->achan[channel].octrl[ot].ptt_method = PTT_METHOD_GPIOD;
++#else
++	      text_color_set(DW_COLOR_ERROR);
++	      dw_printf ("GPIOD is not supported.\n");
++#endif /* USE_GPIOD*/
++#endif /* __WIN32__ */
+ 	    }
+ 	    else if (strcasecmp(t, "LPT") == 0) {
+ 
+diff --git a/src/direwolf.c b/src/direwolf.c
+index 8d6e8a7..0e41f4f 100644
+--- a/src/direwolf.c
++++ b/src/direwolf.c
+@@ -302,6 +302,9 @@ int main (int argc, char *argv[])
+ #endif
+ #if defined(USE_CM108)
+ 	dw_printf (" cm108-ptt");
++#endif
++#if defined(USE_GPIOD)
++	dw_printf (" libgpiod");
+ #endif
+ 	dw_printf ("\n");
+ #endif
+diff --git a/src/ptt.c b/src/ptt.c
+index cf49bba..dc1f5d8 100644
+--- a/src/ptt.c
++++ b/src/ptt.c
+@@ -166,6 +166,10 @@
+ #include "cm108.h"
+ #endif
+ 
++#ifdef USE_GPIOD
++#include <gpiod.h>
++#endif 
++
+ /* So we can have more common code for fd. */
+ typedef int HANDLE;
+ #define INVALID_HANDLE_VALUE (-1)
+@@ -623,6 +627,47 @@ void export_gpio(int ch, int ot, int invert, int direction)
+ 	get_access_to_gpio (gpio_value_path);
+ }
+ 
++#if USE_GPIOD
++struct gpiod_line *gpiod_probe(const char *chip_name, int line_number, int invert)
++{
++	struct gpiod_chip *chip;
++	chip = gpiod_chip_open_lookup(chip_name);
++	if (chip == NULL) {
++		text_color_set(DW_COLOR_ERROR);
++		dw_printf ("Error opening GPIOD chip %s.\n", chip_name);
++		return NULL;
++	}
++
++	struct gpiod_line *line;
++	line = gpiod_chip_get_line(chip, line_number);
++	if (line == NULL) {
++        gpiod_chip_close(chip);
++		text_color_set(DW_COLOR_ERROR);
++		dw_printf ("Error getting GPIOD chip: %s line: %d.\n", chip_name, line_number);
++		return NULL;
++	}
++
++    int flags = 0;
++    if (invert) {
++        flags |= GPIOD_LINE_REQUEST_FLAG_ACTIVE_LOW;
++    }
++
++    int rc = gpiod_line_request_output_flags(line, "direwolf", flags, 0);
++    if (rc < 0) {
++        gpiod_chip_close(chip);
++        text_color_set(DW_COLOR_ERROR);
++        dw_printf ("Error requesting GPIOD chip: %s line: %d.\n", chip_name, line_number);
++        return NULL;
++    }
++
++	if (ptt_debug_level >= 2) {
++		text_color_set(DW_COLOR_DEBUG);
++		dw_printf("GPIOD probe OK. Chip: %s line: %d\n", chip_name, line_number);
++	}
++
++    return line;
++}
++#endif   /* USE_GPIOD */
+ #endif   /* not __WIN32__ */
+ 
+ 
+@@ -639,7 +684,8 @@ void export_gpio(int ch, int ot, int invert, int direction)
+  *			ptt_method	Method for PTT signal. 
+  *					PTT_METHOD_NONE - not configured.  Could be using VOX. 
+  *					PTT_METHOD_SERIAL - serial (com) port. 
+- *					PTT_METHOD_GPIO - general purpose I/O. 
++ *					PTT_METHOD_GPIO - general purpose I/O (sysfs). 
++ *					PTT_METHOD_GPIOD - general purpose I/O (libgpiod). 
+  *					PTT_METHOD_LPT - Parallel printer port. 
+  *                  			PTT_METHOD_HAMLIB - HAMLib rig control.
+  *					PTT_METHOD_CM108 - GPIO pins of CM108 etc. USB Audio.
+@@ -683,6 +729,10 @@ static HANDLE ptt_fd[MAX_CHANS][NUM_OCTYPES];
+ static RIG *rig[MAX_CHANS][NUM_OCTYPES];
+ #endif
+ 
++#if USE_GPIOD
++static struct gpiod_line *gpiod_lines[MAX_CHANS][NUM_OCTYPES];
++#endif
++
+ static char otnames[NUM_OCTYPES][8];
+ 
+ void ptt_init (struct audio_s *audio_config_p)
+@@ -893,8 +943,30 @@ void ptt_init (struct audio_s *audio_config_p)
+ 	    }
+ 	  }
+ 	}
+-#endif
+ 
++#if USE_GPIOD
++    // GPIOD
++	for (ch = 0; ch < MAX_CHANS; ch++) {
++	  if (save_audio_config_p->achan[ch].medium == MEDIUM_RADIO) {
++	    for (int ot = 0; ot < NUM_OCTYPES; ot++) {
++	      if (audio_config_p->achan[ch].octrl[ot].ptt_method == PTT_METHOD_GPIOD) {
++	        const char *chip_name = audio_config_p->achan[ch].octrl[ot].ptt_device;
++	        int line_number = audio_config_p->achan[ch].octrl[ot].out_gpio_num;
++
++	        struct gpiod_line *line = gpiod_probe(chip_name, line_number, audio_config_p->achan[ch].ictrl[ot].invert);
++	        if (line == NULL) {
++                text_color_set(DW_COLOR_ERROR);
++                dw_printf ("Failed to request GPIOD line, disabling PTT for channel %d\n", ch);
++                audio_config_p->achan[ch].octrl[ot].ptt_method = PTT_METHOD_NONE;
++            } else {
++                gpiod_lines[ch][ot] = line;
++            }
++          }
++	    }
++	  }
++	}
++#endif /* USE_GPIOD */
++#endif
+ 
+ 
+ /*
+@@ -1226,6 +1298,22 @@ void ptt_set (int ot, int chan, int ptt_signal)
+ 	  close (fd);
+ 
+ 	}
++
++#ifdef USE_GPIOD
++	if (save_audio_config_p->achan[chan].octrl[ot].ptt_method == PTT_METHOD_GPIOD) {
++		const char *chip = save_audio_config_p->achan[chan].octrl[ot].out_gpio_name;
++		int line = save_audio_config_p->achan[chan].octrl[ot].out_gpio_num;
++		int rc = gpiod_line_set_value(gpiod_lines[chan][ot], ptt);
++		if (ptt_debug_level >= 1) {
++			text_color_set(DW_COLOR_DEBUG);
++			dw_printf("PTT_METHOD_GPIOD chip: %s line: %d ptt: %d  rc: %d\n", chip, line, ptt, rc);
++		}
++		if (rc < 0) {
++			text_color_set(DW_COLOR_ERROR);
++			dw_printf("Error setting GPIOD chip: %s line: %d ptt: %d, err: %s\n", chip, line, ptt, strerror(errno));
++		}
++	}
++#endif /* USE_GPIOD */
+ #endif
+ 	
+ /*
+@@ -1430,6 +1518,20 @@ void ptt_term (void)
+ 	  }
+ 	}
+ #endif
++
++#ifdef USE_GPIOD
++
++	for (n = 0; n < MAX_CHANS; n++) {
++	  if (save_audio_config_p->achan[n].medium == MEDIUM_RADIO) {
++	    int ot;
++	    for (ot = 0; ot < NUM_OCTYPES; ot++) {
++	      if (gpiod_lines[n][ot] != NULL) {
++              gpiod_line_close_chip(gpiod_lines[n][ot]);
++	      }
++	    }
++	  }
++	}
++#endif
+ }
+ 
+ 
