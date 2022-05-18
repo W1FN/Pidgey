@@ -18,7 +18,10 @@ start() {
     fi
 
     printf "Starting Dire Wolf: "
-    start-stop-daemon -S -q -m -b -p /var/run/direwolf.pid -c direwolf -x /bin/sh -- -c "/usr/bin/direwolf $DIREWOLF_ARGS 2>&1 >> /var/log/direwolf/direwolf.log"
+    start-stop-daemon -S -q -m -b -p /var/run/direwolf.pid -c direwolf -x /bin/sh -- -c \
+                      "exec /usr/bin/direwolf $DIREWOLF_ARGS 2>&1 \
+                       > >( ts -i '+%.s' | ts '[%Y-%m-%d %H:%M:%S]' \
+                            >> /var/log/direwolf/direwolf.log )"
     [ $? = 0 ] && echo "OK" || echo "FAIL"
 }
 
