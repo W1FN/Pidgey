@@ -38,7 +38,7 @@ fi
 targets="$@"
 if [ -z "$targets" ]
 then
-    targets="$(find /boot/config/ -type f | sed 's|^/boot/config||g')"
+    targets="$(find /boot/config/ -not \( -path /boot/config/.git -prune \) -type f | sed 's|^/boot/config||g')"
 fi
 
 for target in $targets
@@ -48,8 +48,14 @@ do
     if ! diff -Ns /boot/config/"$absolute_path" "$absolute_path"
     then
         read -p "Press enter to copy this file, or ^C to abort"
-        (set -x ; install -pD "$absolute_path" /boot/config/"$absolute_path")
+        (
+            set -x
+            install -pD "$absolute_path" /boot/config/"$absolute_path"
+            git -C /boot/config add /boot/config/"$absolute_path"
+        )
     fi
 done
+
+git -C /boot/config commit
 
 cleanup

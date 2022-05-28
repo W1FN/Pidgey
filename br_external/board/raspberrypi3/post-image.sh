@@ -6,6 +6,13 @@ set -e
 mkdir -p "${BINARIES_DIR}/config/etc"
 cp "${TARGET_DIR}/etc/"{hostname,wpa_supplicant.conf,direwolf.conf} "${BINARIES_DIR}/config/etc/"
 
+# initialize git repo for config
+[ -e "${BINARIES_DIR}/config/.git" ] || git -C "${BINARIES_DIR}/config/" init
+git -C "${BINARIES_DIR}/config/" config user.email "pidgey@w1fn-pidgey"
+git -C "${BINARIES_DIR}/config/" config user.name "W1FN Pidgey"
+git -C "${BINARIES_DIR}/config/" config core.fileMode false
+git -C "${BINARIES_DIR}/config/" add -A && git -C "${BINARIES_DIR}/config/" commit -m "Initial Commit" || :
+
 # run genimage
 BOARD_DIR="$(dirname $0)"
 BOARD_NAME="$(basename ${BOARD_DIR})"
