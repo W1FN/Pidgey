@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# Mark booted slot as good in RAUC
+#
+
+case "$1" in
+    start)
+        mount -o remount,rw /boot
+        rauc status mark-good
+        mount -o remount,ro /boot
+        ;;
+    *)
+        echo "Usage: $0 {start}"
+        exit 1
+esac
+
+exit $?
