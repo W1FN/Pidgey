@@ -1,0 +1,2 @@
+# for update.sh
+Defaults env_keep += "SSH_CLIENT"

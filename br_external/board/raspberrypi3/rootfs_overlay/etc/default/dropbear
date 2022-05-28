@@ -1,0 +1,2 @@
+# disable root login and password authentication
+DROPBEAR_ARGS="-s -w"

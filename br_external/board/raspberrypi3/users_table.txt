@@ -1,0 +1,1 @@
+pidgey -2 pidgey -2 $6$jtpn0oMVPi3j.2Zc$MmxxDf/YU1sNve1SPddFIHq/u7u3rW9tRNVszPlRAGo5HztRwAzzlkk.GRadF5OCH6vyuqRUetExHiZcUfl4x/ /home/pidgey /bin/bash sudo
