@@ -2,6 +2,12 @@
 
 set -e
 
+if [ $(id -u) -ne 0 ]
+then
+    echo "Must be root to run this script"
+    exit 1
+fi
+
 source="${1:-http://${SSH_CLIENT%% *}:8000/update.rauc}"
 
 wget "$source" -O /tmp/update.rauc
