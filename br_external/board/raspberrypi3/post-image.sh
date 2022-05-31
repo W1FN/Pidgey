@@ -5,6 +5,8 @@ set -e
 # copy over basic config templates
 mkdir -p "${BINARIES_DIR}/config/etc"
 cp "${TARGET_DIR}/etc/"{hostname,wpa_supplicant.conf,direwolf.conf} "${BINARIES_DIR}/config/etc/"
+mkdir -p "${BINARIES_DIR}/config"{/home/pidgey/.ssh/,/var/lib/alsa/,/etc/wireguard/}
+touch -a "${BINARIES_DIR}/config"{/home/pidgey/.ssh/authorized_keys,/var/lib/alsa/asound.state}
 
 # initialize git repo for config
 [ -e "${BINARIES_DIR}/config/.git" ] || git -C "${BINARIES_DIR}/config/" init
