@@ -1,0 +1,182 @@
+From 05c618f86a647b4c142f44622f015d4e96793bbe Mon Sep 17 00:00:00 2001
+From: Adam Goldsmith <adam@adamgoldsmith.name>
+Date: Thu, 12 May 2022 21:24:00 -0400
+Subject: [PATCH 3/6] Allow configuring bias and drive settings for GPIOD PTT
+
+---
+ src/audio.h  |  4 +++
+ src/config.c | 91 +++++++++++++++++++++++++++++++++++++++++++---------
+ src/ptt.c    |  9 ++----
+ 3 files changed, 81 insertions(+), 23 deletions(-)
+
+diff --git a/src/audio.h b/src/audio.h
+index 74b8831..fe2bf0d 100644
+--- a/src/audio.h
++++ b/src/audio.h
+@@ -273,6 +273,10 @@ struct audio_s {
+ 
+ 					/* This could probably be collapsed into ptt_device instead of being separate. */
+ 
++#ifdef USE_GPIOD
++            int gpiod_flags;
++#endif
++
+ 	        int ptt_lpt_bit;	/* Bit number for parallel printer port.  */
+ 					/* Bit 0 = pin 2, ..., bit 7 = pin 9. */
+ 
+diff --git a/src/config.c b/src/config.c
+index c24c929..a5d39ab 100644
+--- a/src/config.c
++++ b/src/config.c
+@@ -48,6 +48,9 @@
+ #include <gps.h>		/* for DEFAULT_GPSD_PORT  (2947) */
+ #endif
+ 
++#if USE_GPIOD
++#include <gpiod.h>		// Linux only
++#endif
+ 
+ #include "ax25_pad.h"
+ #include "textcolor.h"
+@@ -1748,32 +1751,88 @@ void config_init (char *fname, struct audio_s *p_audio_config,
+ #if __WIN32__
+ 	      text_color_set(DW_COLOR_ERROR);
+ 	      dw_printf ("Config file line %d: %s with GPIOD is only available on Linux.\n", line, otname);
+-#else		
++#else
+ #if defined(USE_GPIOD)
+-	      t = split(NULL,0);
+-	      if (t == NULL) {
++          // Set to an invalid value so we can check if it was set
++          p_audio_config->achan[channel].octrl[ot].out_gpio_num = -1;
++
++          while ((t = split(NULL,0)) != NULL) {
++            char keyword[20];
++            char value[200];
++            char *e;
++
++            e = strchr(t, '=');
++            if (e == NULL) {
++              text_color_set(DW_COLOR_ERROR);
++              dw_printf ("Config file: No = found in, %s, on line %d.\n", t, line);
++              return (0);
++            }
++            *e = '\0';
++            strlcpy (keyword, t, sizeof(keyword));
++            strlcpy (value, e+1, sizeof(value));
++
++            if (strcasecmp(keyword, "CHIP") == 0) {
++              strlcpy(p_audio_config->achan[channel].octrl[ot].ptt_device, value,
++                      sizeof(p_audio_config->achan[channel].octrl[ot].ptt_device));
++            }
++            else if (strcasecmp(keyword, "OFFSET") == 0) {
++              p_audio_config->achan[channel].octrl[ot].out_gpio_num = atoi(value);
++            }
++            else if (strcasecmp(keyword, "INVERT") == 0) {
++              p_audio_config->achan[channel].octrl[ot].ptt_invert = atoi(value);
++              if (p_audio_config->achan[channel].octrl[ot].ptt_invert == 1) {
++                p_audio_config->achan[channel].octrl[ot].gpiod_flags |= GPIOD_LINE_REQUEST_FLAG_ACTIVE_LOW;
++              }
++            }
++            else if (strcasecmp(keyword, "BIAS") == 0) {
++              if (strcasecmp(value, "AS-IS") == 0) {
++                // default, so don't modify flags
++              }
++              else if (strcasecmp(value, "DISABLE") == 0) {
++                p_audio_config->achan[channel].octrl[ot].gpiod_flags |= GPIOD_LINE_REQUEST_FLAG_BIAS_DISABLE;
++              }
++              else if (strcasecmp(value, "PULL-DOWN") == 0) {
++                p_audio_config->achan[channel].octrl[ot].gpiod_flags |= GPIOD_LINE_REQUEST_FLAG_BIAS_PULL_DOWN;
++              }
++              else if (strcasecmp(value, "PULL-UP") == 0) {
++                p_audio_config->achan[channel].octrl[ot].gpiod_flags |= GPIOD_LINE_REQUEST_FLAG_BIAS_PULL_UP;
++              }
++              else {
++                text_color_set(DW_COLOR_ERROR);
++                dw_printf("Config file line %d: Invalid value for GPIOD BIAS: %s. It must be one of: [as-is|disable|pull-down|pull-up] (defaults to 'as-is').\n", line, value);
++                continue;
++              }
++            }
++            else if (strcasecmp(keyword, "DRIVE") == 0) {
++              if (strcasecmp(value, "PUSH-PULL") == 0) {
++                // default, so don't modify flags
++              }
++              else if (strcasecmp(value, "OPEN-DRAIN") == 0) {
++                p_audio_config->achan[channel].octrl[ot].gpiod_flags |= GPIOD_LINE_REQUEST_FLAG_OPEN_DRAIN;
++              }
++              else if (strcasecmp(value, "OPEN-SOURCE") == 0) {
++                p_audio_config->achan[channel].octrl[ot].gpiod_flags |= GPIOD_LINE_REQUEST_FLAG_OPEN_SOURCE;
++              }
++              else {
++                text_color_set(DW_COLOR_ERROR);
++                dw_printf("Config file line %d: Invalid value for GPIOD DRIVE: %s. It must be one of: [push-pull|open-drain|open-source] (defaults to 'push-pull').\n", line, value);
++                continue;
++              }
++            }
++          }
++
++          if (p_audio_config->achan[channel].octrl[ot].ptt_device == NULL) {
+ 	        text_color_set(DW_COLOR_ERROR);
+ 	        dw_printf ("Config file line %d: Missing GPIO chip for %s.\n", line, otname);
+ 	        continue;
+ 	      }
+-	      strlcpy(p_audio_config->achan[channel].octrl[ot].ptt_device, t,
+-	              sizeof(p_audio_config->achan[channel].octrl[ot].ptt_device));
+ 
+-	      t = split(NULL,0);
+-	      if (t == NULL) {
++	      if (p_audio_config->achan[channel].octrl[ot].out_gpio_num < 0) {
+ 	        text_color_set(DW_COLOR_ERROR);
+-	        dw_printf("Config file line %d: Missing GPIO number for %s.\n", line, otname);
++	        dw_printf("Config file line %d: Missing or invalid GPIO offset for %s.\n", line, otname);
+ 	        continue;
+ 	      }
+ 
+-	      if (*t == '-') {
+-	        p_audio_config->achan[channel].octrl[ot].out_gpio_num = atoi(t+1);
+-		p_audio_config->achan[channel].octrl[ot].ptt_invert = 1;
+-	      }
+-	      else {
+-	        p_audio_config->achan[channel].octrl[ot].out_gpio_num = atoi(t);
+-		p_audio_config->achan[channel].octrl[ot].ptt_invert = 0;
+-	      }
+ 	      p_audio_config->achan[channel].octrl[ot].ptt_method = PTT_METHOD_GPIOD;
+ #else
+ 	      text_color_set(DW_COLOR_ERROR);
+diff --git a/src/ptt.c b/src/ptt.c
+index 6ca30ff..fb91551 100644
+--- a/src/ptt.c
++++ b/src/ptt.c
+@@ -628,7 +628,7 @@ void export_gpio(int ch, int ot, int invert, int direction)
+ }
+ 
+ #if USE_GPIOD
+-struct gpiod_line *gpiod_probe(const char *chip_name, int line_number, int invert)
++struct gpiod_line *gpiod_probe(const char *chip_name, int line_number, int flags)
+ {
+ 	struct gpiod_chip *chip;
+ 	chip = gpiod_chip_open_lookup(chip_name);
+@@ -647,11 +647,6 @@ struct gpiod_line *gpiod_probe(const char *chip_name, int line_number, int inver
+ 		return NULL;
+ 	}
+ 
+-    int flags = 0;
+-    if (invert) {
+-        flags |= GPIOD_LINE_REQUEST_FLAG_ACTIVE_LOW;
+-    }
+-
+     int rc = gpiod_line_request_output_flags(line, "direwolf", flags, 0);
+     if (rc < 0) {
+         gpiod_chip_close(chip);
+@@ -953,7 +948,7 @@ void ptt_init (struct audio_s *audio_config_p)
+ 	        const char *chip_name = audio_config_p->achan[ch].octrl[ot].ptt_device;
+ 	        int line_number = audio_config_p->achan[ch].octrl[ot].out_gpio_num;
+ 
+-	        struct gpiod_line *line = gpiod_probe(chip_name, line_number, audio_config_p->achan[ch].octrl[ot].ptt_invert);
++	        struct gpiod_line *line = gpiod_probe(chip_name, line_number, audio_config_p->achan[ch].octrl[ot].gpiod_flags);
+ 	        if (line == NULL) {
+                 text_color_set(DW_COLOR_ERROR);
+                 dw_printf ("Failed to request GPIOD line, disabling PTT for channel %d\n", ch);
+-- 
+2.36.1
+
