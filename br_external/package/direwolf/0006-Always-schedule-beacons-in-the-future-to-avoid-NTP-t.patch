@@ -1,0 +1,56 @@
+From 4c57d6072c536842246c0933a472bf8342a18e6c Mon Sep 17 00:00:00 2001
+From: Adam Goldsmith <adam@adamgoldsmith.name>
+Date: Tue, 31 May 2022 20:35:35 -0400
+Subject: [PATCH 6/6] Always schedule beacons in the future to avoid NTP time
+ jump issues
+
+See also PR #301, which resolves this in a slightly less good way
+---
+ src/beacon.c | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/beacon.c b/src/beacon.c
+index 3fea714..b2c6054 100644
+--- a/src/beacon.c
++++ b/src/beacon.c
+@@ -576,6 +576,10 @@ static void * beacon_thread (void *arg)
+ 	      /* Calculate when the next one should be sent. */
+ 	      /* Easy for fixed interval.  SmartBeaconing takes more effort. */
+ 
++	      /* For fixed interval: ensure that next beacon is in the future, aligned to 'every' interval */
++          /* In the case of a jump in system time (ex NTP catching up) multiple beacons will not be sent*/
++	      time_t next_interval_time = now - ((now - bp->next) % bp->every) + bp->every;
++
+ 	      if (bp->btype == BEACON_TRACKER) {
+ 
+ 	        if (gpsinfo.fix < DWFIX_2D) {
+@@ -588,7 +592,7 @@ static void * beacon_thread (void *arg)
+ 	          else {
+ 	            /* Stay with the schedule. */
+ 	            /* Important for slotted.  Might reconsider otherwise. */
+-	            bp->next += bp->every;
++	            bp->next = next_interval_time;
+ 	          }
+ 	        }
+ 	        else if (g_misc_config_p->sb_configured) {
+@@ -605,15 +609,12 @@ static void * beacon_thread (void *arg)
+ 	        }
+ 	        else {
+ 	          /* Tracker beacon, fixed spacing. */
+-	          bp->next += bp->every;
++	          bp->next = next_interval_time;
+ 	        }
+ 	      }
+ 	      else {
+ 	        /* Non-tracker beacon, fixed spacing. */
+-		/* Increment by 'every' so slotted times come out right. */
+-	        /* i.e. Don't take relative to now in case there was some delay. */
+-
+-	        bp->next += bp->every;
++	        bp->next = next_interval_time;
+ 	      }
+ 
+ 	    }  /* if time to send it */
+-- 
+2.36.1
+
