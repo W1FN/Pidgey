@@ -31,6 +31,8 @@ The SD card is a FAT partition, so it should be editable on Linux/MacOS/Windows/
 
 ## Building
 
+This is a [buildroot](https://buildroot.org/) project, so all upstream dependencies apply.
+
 1. Either clone with `git clone --recurse-submodules` or after cloning run `git submodule update --init` to download buildroot.
 2. `cd buildroot`
 3. `make BR2_EXTERNAL=../br_external menuconfig` (or `xconfig`) and save the configuration
