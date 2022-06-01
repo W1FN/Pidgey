@@ -22,6 +22,10 @@ disable_poe_fan=1
 # fixes rpi (3B, 3B+, 3A+, 4B and Zero W) ttyAMA0 serial console
 dtoverlay=miniuart-bt
 
+# TODO: I'm not entirely sure this is necessary.
+# see https://nw-digital-radio.groups.io/g/udrc/wiki/1509
+force_turbo=1
+
 # enable as appropriate:
 # dtoverlay=udrc
 # dtoverlay=draws,alsaname=udrc
