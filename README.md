@@ -35,7 +35,7 @@ The SD card is a FAT partition, so it should be editable on Linux/MacOS/Windows/
 2. `cd buildroot`
 3. `make BR2_EXTERNAL=../br_external menuconfig` (or `xconfig`) and save the configuration
 4. `make pidgey_defconfig` to select the config
-5. `make`
+5. `make -jX`, where X is the number of parallel jobs to run (generally around the number of CPU cores you have)
 6. flash `output/images/sdcard.img` to a sd card, and put it in a Raspberry Pi 3
 
 ## Acknowledgments/Sources
