@@ -9,7 +9,7 @@ DIREWOLF_ARGS="-X 1"  # enable FX.25 by default
 test -r /etc/default/direwolf && . /etc/default/direwolf
 
 start() {
-    DIREWOLF_ARGS="$DIREWOLF_ARGS -t 0 -c /etc/direwolf.conf -l /var/log/direwolf/"
+    DIREWOLF_ARGS="$DIREWOLF_ARGS -t 5 -c /etc/direwolf.conf -l /var/log/direwolf/"
 
     if [ ! -e /dev/sda1 ]
     then

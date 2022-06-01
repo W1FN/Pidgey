@@ -1,0 +1,32 @@
+From 8de1e589cbc5a195a5bc34823fbc3858b6c60610 Mon Sep 17 00:00:00 2001
+From: Adam Goldsmith <adam@adamgoldsmith.name>
+Date: Mon, 2 May 2022 22:24:26 -0400
+Subject: [PATCH 4/6] Reset styles and colors between color tests
+
+---
+ src/textcolor.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/textcolor.c b/src/textcolor.c
+index a515e2e..edfad9f 100644
+--- a/src/textcolor.c
++++ b/src/textcolor.c
+@@ -137,6 +137,7 @@
+ 
+ static const char *t_background_white[MAX_T+1] = { "", "\e[48;2;255;255;255m",	    	   "\e[48;2;255;255;255m",		    "\e[5;47m",		   "\e[1;47m" };
+ 
++static const char *t_reset = "\e[0m";
+ static const char *t_black[MAX_T+1]	= 	{ "", "\e[38;2;0;0;0m",		"\e[0;30m" "\e[48;2;255;255;255m",	"\e[0;30m" "\e[5;47m",	"\e[0;30m" "\e[1;47m" };
+ static const char *t_red[MAX_T+1] 	= 	{ "", "\e[38;2;255;0;0m",	"\e[1;31m" "\e[48;2;255;255;255m",	"\e[1;31m" "\e[5;47m",	"\e[1;31m" "\e[1;47m" };
+ static const char *t_green[MAX_T+1] 	= 	{ "", "\e[38;2;0;255;0m",	"\e[1;32m" "\e[48;2;255;255;255m",	"\e[1;32m" "\e[5;47m",	"\e[1;32m" "\e[1;47m" };
+@@ -220,6 +221,7 @@ void text_color_init (int enable_color)
+ 	    printf ("%sBlue ", t_blue[t]);
+ 	    printf ("%sMagenta ", t_magenta[t]);
+ 	    printf ("%sCyan   \n", t_cyan[t]);
++	    printf ("%s", t_reset);
+ 	   }
+ 	   exit (EXIT_SUCCESS);
+ 	}
+-- 
+2.36.1
+
