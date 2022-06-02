@@ -1,0 +1,61 @@
+From 50360954c1ce2edad4c921eca76fbe4c403a4941 Mon Sep 17 00:00:00 2001
+From: Adam Goldsmith <adam@adamgoldsmith.name>
+Date: Wed, 1 Jun 2022 02:57:26 -0400
+Subject: [PATCH] sg6-log: Use renameat2 instead of link for vfat support
+
+---
+ src/daemontools-extras/s6-log.c | 26 ++++++++++++--------------
+ 1 file changed, 12 insertions(+), 14 deletions(-)
+
+diff --git a/src/daemontools-extras/s6-log.c b/src/daemontools-extras/s6-log.c
+index 5a7ce4d..33c894d 100644
+--- a/src/daemontools-extras/s6-log.c
++++ b/src/daemontools-extras/s6-log.c
+@@ -1,5 +1,7 @@
+ /* ISC license. */
+ 
++#define _GNU_SOURCE
++
+ #include <fcntl.h>
+ #include <sys/stat.h>
+ #include <sys/wait.h>
+@@ -289,26 +291,22 @@ static inline int logdir_trim (logdir_t *ldp)
+ 
+ static int finish (logdir_t *ldp, char const *name, char suffix)
+ {
+-  struct stat st ;
+   size_t dirlen = strlen(ldp->dir) ;
+   size_t namelen = strlen(name) ;
+   char x[dirlen + namelen + 2] ;
+   memcpy(x, ldp->dir, dirlen) ;
+   x[dirlen] = '/' ;
+   memcpy(x + dirlen + 1, name, namelen + 1) ;
+-  if (stat(x, &st) < 0) return errno == ENOENT ? 0 : -1 ;
+-  if (st.st_nlink == 1)
+-  {
+-    char y[dirlen + 29] ;
+-    memcpy(y, ldp->dir, dirlen) ;
+-    y[dirlen] = '/' ;
+-    timestamp_g(y + dirlen + 1) ;
+-    y[dirlen + 26] = '.' ;
+-    y[dirlen + 27] = suffix ;
+-    y[dirlen + 28] = 0 ;
+-    if (link(x, y) < 0) return -1 ;
+-  }
+-  if (unlink(x) < 0) return -1 ;
++
++  char y[dirlen + 29] ;
++  memcpy(y, ldp->dir, dirlen) ;
++  y[dirlen] = '/' ;
++  timestamp_g(y + dirlen + 1) ;
++  y[dirlen + 26] = '.' ;
++  y[dirlen + 27] = suffix ;
++  y[dirlen + 28] = 0 ;
++  if (renameat2(AT_FDCWD, x, AT_FDCWD, y, RENAME_NOREPLACE) < 0) return -1 ;
++
+   return logdir_trim(ldp) ;
+ }
+ 
+-- 
+2.36.1
+
