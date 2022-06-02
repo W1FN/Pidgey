@@ -1,0 +1,2 @@
+# Compress old logs daily
+0 0 * * * /sbin/compress-direwolf-logs.sh
