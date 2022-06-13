@@ -15,10 +15,16 @@ start() {
     then
         mkdir -p /var/log/direwolf
         chown direwolf:direwolf /var/log/direwolf
-    elif [ -n "$(awk '$2~/\/mnt/' /proc/mounts)" ]
+    # /var/log is just a symlink to /tmp, so it shows as mounted there
+    elif [ -z "$(awk '$2~/\/(tmp|var\/log)\/direwolf/' /proc/mounts)" ]
     then
-         mkdir -p /mnt/direwolf-logs /var/log/direwolf
-         mount -o bind /mnt/direwolf-logs/ /var/log/direwolf
+        if [ -z "$(awk '$2~/\/mnt/' /proc/mounts)" ]
+        then
+            mount /mnt
+        fi
+
+        mkdir -p /mnt/direwolf-logs /var/log/direwolf
+        mount -o bind /mnt/direwolf-logs/ /var/log/direwolf
     fi
 
     printf "Starting Dire Wolf: "
