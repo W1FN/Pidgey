@@ -19,7 +19,7 @@ index 5a7ce4d..33c894d 100644
  #include <fcntl.h>
  #include <sys/stat.h>
  #include <sys/wait.h>
-@@ -289,26 +291,22 @@ static inline int logdir_trim (logdir_t *ldp)
+@@ -289,26 +291,24 @@ static inline int logdir_trim (logdir_t *ldp)
  
  static int finish (logdir_t *ldp, char const *name, char suffix)
  {
@@ -51,7 +51,9 @@ index 5a7ce4d..33c894d 100644
 +  y[dirlen + 26] = '.' ;
 +  y[dirlen + 27] = suffix ;
 +  y[dirlen + 28] = 0 ;
-+  if (renameat2(AT_FDCWD, x, AT_FDCWD, y, RENAME_NOREPLACE) < 0) return -1 ;
++  if (renameat2(AT_FDCWD, x, AT_FDCWD, y, RENAME_NOREPLACE) < 0) {
++    return errno == ENOENT ? 0 : -1 ;
++  }
 +
    return logdir_trim(ldp) ;
  }
