@@ -29,6 +29,19 @@ The SD card is a FAT partition, so it should be editable on Linux/MacOS/Windows/
 **You can use the `persist` script for this purpose.**
 **It will copy all files given on the command line, or check for changes to files in `/boot/config` if no arguments are passed.**
 
+### Logs
+
+Log files for direwolf are stored on a USB drive, if one is inserted.
+FAT32 and ext3/4 formatted drives are supported.
+Logs can be found at `/direwolf-logs/` on the USB drive, or `/var/log/direwolf` on a running system.
+
+The dated files are direwolf's CSV logs, which contain recieved packets.
+Logs older than 2 days will be compressed with gzip, and can be read with `zcat`.
+
+Stdout and stderr are stored in the `stdout` folder, which is managed by [`s6-log`](http://skarnet.org/software/s6/s6-log.html).
+You can follow this log with `s6-logwatch /var/log/direwolf/stdout/ | less +F` (piping this through `less +F` just cleans up the colors) or just `less +F /var/log/direwolf/stdout/current` (but this will not correctly switch files when the log is rotated).
+Old logs are named with a [TAI64N](http://skarnet.org/software/skalibs/libstddjb/tai.html#timestamp) timestamp with the pattern `@<timestamp>.s`, and are also gzipped.
+
 ## Building
 
 This is a [buildroot](https://buildroot.org/) project, so all upstream dependencies apply.
