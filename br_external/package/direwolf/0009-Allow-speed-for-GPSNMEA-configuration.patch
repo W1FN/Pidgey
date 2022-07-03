@@ -1,0 +1,85 @@
+From 5dbe2ce136fbe75dcfed49583fb62e2b394293c1 Mon Sep 17 00:00:00 2001
+From: wb2osz <wb2osz@comcast.net>
+Date: Wed, 29 Dec 2021 17:30:20 -0500
+Subject: [PATCH 09/11] Allow speed for GPSNMEA configuration.
+
+---
+ src/config.c    | 11 +++++++++--
+ src/config.h    |  3 ++-
+ src/dwgpsnmea.c |  6 ++----
+ 3 files changed, 13 insertions(+), 7 deletions(-)
+
+diff --git a/src/config.c b/src/config.c
+index b6de631..7840a92 100644
+--- a/src/config.c
++++ b/src/config.c
+@@ -4774,7 +4774,7 @@ void config_init (char *fname, struct audio_s *p_audio_config,
+ 
+ 
+ /*
+- * GPSNMEA		- Device name for reading from GPS receiver.
++ * GPSNMEA  serial-device  [ speed ]		- Direct connection to GPS receiver.
+  */
+ 	  else if (strcasecmp(t, "gpsnmea") == 0) {
+ 	    t = split(NULL,0);
+@@ -4783,8 +4783,15 @@ void config_init (char *fname, struct audio_s *p_audio_config,
+ 	      dw_printf ("Config file, line %d: Missing serial port name for GPS receiver.\n", line);
+ 	      continue;
+ 	    }
++	    strlcpy (p_misc_config->gpsnmea_port, t, sizeof(p_misc_config->gpsnmea_port));
++
++	    t = split(NULL,0);
++	    if (t != NULL) {
++	      int n = atoi(t);
++	      p_misc_config->gpsnmea_speed = n;
++	    }
+ 	    else {
+-	      strlcpy (p_misc_config->gpsnmea_port, t, sizeof(p_misc_config->gpsnmea_port));
++	      p_misc_config->gpsnmea_speed = 4800;	// The standard at one time.
+ 	    }
+ 	  }
+ 
+diff --git a/src/config.h b/src/config.h
+index 3155343..bfc4e12 100644
+--- a/src/config.h
++++ b/src/config.h
+@@ -76,7 +76,8 @@ struct misc_config_s {
+ 
+ 	char gpsnmea_port[20];	/* Serial port name for reading NMEA sentences from GPS. */
+ 				/* e.g. COM22, /dev/ttyACM0 */
+-				/* Currently no option for setting non-standard speed. */
++
++	int gpsnmea_speed;	/* Speed for above, baud, default 4800. */
+ 
+ 	char gpsd_host[20];	/* Host for gpsd server. */
+ 				/* e.g. localhost, 192.168.1.2 */
+diff --git a/src/dwgpsnmea.c b/src/dwgpsnmea.c
+index 5f4a3bf..89f494c 100644
+--- a/src/dwgpsnmea.c
++++ b/src/dwgpsnmea.c
+@@ -148,7 +148,7 @@ int dwgpsnmea_init (struct misc_config_s *pconfig, int debug)
+  * Should add an option to allow changing someday.
+  */
+ 
+-	s_gpsnmea_port_fd = serial_port_open (pconfig->gpsnmea_port, 4800);
++	s_gpsnmea_port_fd = serial_port_open (pconfig->gpsnmea_port, pconfig->gpsnmea_speed);
+ 
+ 	if (s_gpsnmea_port_fd != MYFDERROR) {
+ #if __WIN32__
+@@ -182,12 +182,10 @@ int dwgpsnmea_init (struct misc_config_s *pconfig, int debug)
+ 
+ 
+ /* Return fd to share if waypoint wants same device. */
+-/* Currently both are fixed speed at 4800. */
+-/* If that ever becomes configurable, that needs to be compared too. */
+ 
+ MYFDTYPE dwgpsnmea_get_fd(char *wp_port_name, int speed)
+ {
+-	if (strcmp(s_save_configp->gpsnmea_port, wp_port_name) == 0 && speed == 4800) {
++	if (strcmp(s_save_configp->gpsnmea_port, wp_port_name) == 0 && speed == s_save_configp->gpsnmea_speed) {
+ 	  return (s_gpsnmea_port_fd);
+ 	}
+ 	return (MYFDERROR);
+-- 
+2.37.0
+

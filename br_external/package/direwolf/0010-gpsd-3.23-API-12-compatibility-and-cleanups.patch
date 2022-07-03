@@ -1,0 +1,228 @@
+From 42314b7219ec266697396c7a4b61afe91be9b92c Mon Sep 17 00:00:00 2001
+From: wb2osz <wb2osz@comcast.net>
+Date: Sun, 2 Jan 2022 02:55:11 +0000
+Subject: [PATCH 10/11] gpsd 3.23 (API 12) compatibility and cleanups.
+
+---
+ CHANGES.md        |  4 ++
+ src/ax25_link.c   | 14 +++++++
+ src/decode_aprs.c | 54 ++++++++++++++++++++-------
+ src/dwgpsd.c      | 12 +++++-
+ src/dwgpsnmea.c   | 93 +++++++++++++++++++----------------------------
+ 5 files changed, 105 insertions(+), 72 deletions(-)
+
+diff --git a/src/dwgpsd.c b/src/dwgpsd.c
+index 8378288..47df809 100644
+--- a/src/dwgpsd.c
++++ b/src/dwgpsd.c
+@@ -1,7 +1,7 @@
+ //
+ //    This file is part of Dire Wolf, an amateur radio packet TNC.
+ //
+-//    Copyright (C) 2013, 2014, 2015, 2020  John Langner, WB2OSZ
++//    Copyright (C) 2013, 2014, 2015, 2020, 2022  John Langner, WB2OSZ
+ //
+ //    This program is free software: you can redistribute it and/or modify
+ //    it under the terms of the GNU General Public License as published by
+@@ -60,7 +60,11 @@
+ // An incompatibility was introduced with version 7
+ // and again with 9 and again with 10.
+ 
+-#if GPSD_API_MAJOR_VERSION < 5 || GPSD_API_MAJOR_VERSION > 11
++// release	lib version	API	Raspberry Pi OS
++// 3.22		28		11	bullseye
++// 3.23		29		12
++
++#if GPSD_API_MAJOR_VERSION < 5 || GPSD_API_MAJOR_VERSION > 12
+ #error libgps API version might be incompatible.
+ #endif
+ 
+@@ -364,6 +368,10 @@ static void * read_gpsd_thread (void *arg)
+ 	    default:
+ 	    case MODE_NOT_SEEN:
+ 	    case MODE_NO_FIX:
++	      if (info.fix <= DWFIX_NOT_SEEN) {
++		text_color_set(DW_COLOR_INFO);
++	        dw_printf ("GPSD: No location fix.\n");
++	      }
+ 	      if (info.fix >= DWFIX_2D) {
+ 		text_color_set(DW_COLOR_INFO);
+ 	        dw_printf ("GPSD: Lost location fix.\n");
+diff --git a/src/dwgpsnmea.c b/src/dwgpsnmea.c
+index 89f494c..14cda77 100644
+--- a/src/dwgpsnmea.c
++++ b/src/dwgpsnmea.c
+@@ -144,8 +144,6 @@ int dwgpsnmea_init (struct misc_config_s *pconfig, int debug)
+ 
+ /*
+  * Open serial port connection.
+- * 4800 baud is standard for GPS.
+- * Should add an option to allow changing someday.
+  */
+ 
+ 	s_gpsnmea_port_fd = serial_port_open (pconfig->gpsnmea_port, pconfig->gpsnmea_speed);
+@@ -264,9 +262,12 @@ static void * read_gpsnmea_thread (void *arg)
+ 	    }
+ 	    dwgps_set_data (&info);
+ 
+-	    // TODO: doesn't exist yet - serial_port_close(fd);
++	    serial_port_close(s_gpsnmea_port_fd);
+ 	    s_gpsnmea_port_fd = MYFDERROR;
+ 
++	    // TODO: If the open() was in this thread, we could wait a while and
++	    // try to open again.  That would allow recovery if the USB GPS device
++	    // is unplugged and plugged in again.
+ 	    break;	/* terminate thread. */
+ 	  }
+ 
+@@ -287,51 +288,26 @@ static void * read_gpsnmea_thread (void *arg)
+ 	      }
+ 
+ /* Process sentence. */
++// TODO: More general: Ignore the second letter rather than recognizing only GP... and GN...
+ 
+ 	      if (strncmp(gps_msg, "$GPRMC", 6) == 0 ||
+ 		  strncmp(gps_msg, "$GNRMC", 6) == 0) {
+ 
+-		f = dwgpsnmea_gprmc (gps_msg, 0, &info.dlat, &info.dlon, &info.speed_knots, &info.track);
++	        // Here we just tuck away the course and speed.
++	        // Fix and location will be updated by GxGGA.
+ 
+-	        if (f == DWFIX_ERROR) {
++	        double ignore_dlat;
++	        double ignore_dlon;
++
++		f = dwgpsnmea_gprmc (gps_msg, 0, &ignore_dlat, &ignore_dlon, &info.speed_knots, &info.track);
+ 
+-		  /* Parse error.  Shouldn't happen.  Better luck next time. */
+-	            text_color_set(DW_COLOR_INFO);
++	        if (f == DWFIX_ERROR) {
++		    /* Parse error.  Shouldn't happen.  Better luck next time. */
++	            text_color_set(DW_COLOR_ERROR);
+ 	            dw_printf ("GPSNMEA: Error parsing $GPRMC sentence.\n");
+ 	            dw_printf ("%s\n", gps_msg);
+ 	        }
+-	        else if (f == DWFIX_2D) {
+-
+-	          if (info.fix != DWFIX_2D && info.fix != DWFIX_3D) {
+-
+-		    text_color_set(DW_COLOR_INFO);
+-	            dw_printf ("GPSNMEA: Location fix is now available.\n");
+-
+-		    info.fix = DWFIX_2D;   // Don't know if 2D or 3D.  Take minimum.
+-	          }
+-	  	  info.timestamp = time(NULL);
+-	          if (s_debug >= 2) {
+-	            text_color_set(DW_COLOR_DEBUG);
+-	            dwgps_print ("GPSNMEA: ", &info);
+-	          }
+-	          dwgps_set_data (&info);
+-	        }
+-	        else {
+-
+-	          if (info.fix == DWFIX_2D || info.fix == DWFIX_3D) {
+-
+-		    text_color_set(DW_COLOR_INFO);
+-	            dw_printf ("GPSNMEA: Lost location fix.\n");
+-	          }
+-	          info.fix = f;		/* lost it. */
+-	  	  info.timestamp = time(NULL);
+-	          if (s_debug >= 2) {
+-	            text_color_set(DW_COLOR_DEBUG);
+-	            dwgps_print ("GPSNMEA: ", &info);
+-	          }
+-	          dwgps_set_data (&info);
+-	        }
+-
+ 	      }
++
+ 	      else if (strncmp(gps_msg, "$GPGGA", 6) == 0 ||
+ 		       strncmp(gps_msg, "$GNGGA", 6) == 0) {
+@@ -339,22 +314,27 @@
+ 		int nsat;
+ 
+ 		f = dwgpsnmea_gpgga (gps_msg, 0, &info.dlat, &info.dlon, &info.altitude, &nsat);
+ 
+-	        /* Only switch between 2D & 3D.  */
+-	        /* Let GPRMC handle other changes in fix state and data transfer. */
+-
+ 	        if (f == DWFIX_ERROR) {
+-
+ 		    /* Parse error.  Shouldn't happen.  Better luck next time. */
+-	            text_color_set(DW_COLOR_INFO);
++	            text_color_set(DW_COLOR_ERROR);
+ 	            dw_printf ("GPSNMEA: Error parsing $GPGGA sentence.\n");
+ 	            dw_printf ("%s\n", gps_msg);
+ 	        }
+-	        else if ((f == DWFIX_3D && info.fix == DWFIX_2D) ||
+-	                 (f == DWFIX_2D && info.fix == DWFIX_3D)) {
+-		  text_color_set(DW_COLOR_INFO);
+-	          dw_printf ("GPSNMEA: Location fix is now %dD.\n", (int)f);
+-	          info.fix = f;
++	        else  {
++	            if (f != info.fix) {		// Print change in location fix.
++		       text_color_set(DW_COLOR_INFO);
++	               if (f == DWFIX_NO_FIX) dw_printf ("GPSNMEA: Location fix has been lost.\n");
++	               if (f == DWFIX_2D)     dw_printf ("GPSNMEA: Location fix is now 2D.\n");
++	               if (f == DWFIX_3D)     dw_printf ("GPSNMEA: Location fix is now 3D.\n");
++	               info.fix = f;
++	          }
++	          info.timestamp = time(NULL);
++	          if (s_debug >= 2) {
++	            text_color_set(DW_COLOR_DEBUG);
++	            dwgps_print ("GPSNMEA: ", &info);
++	          }
++	          dwgps_set_data (&info);
+ 	        }	
+ 	      }
+ 	    }
+@@ -445,9 +425,11 @@ static int remove_checksum (char *sent, int quiet)
+  *		odlon		longitude
+  *		oknots		speed
+  *		ocourse		direction of travel.
+- *		
++ *
+  *					Left undefined if not valid.
+  *
++ * Note:	RMC does not contain altitude.
++ *
+  * Returns:	DWFIX_ERROR	Parse error.
+  *		DWFIX_NO_FIX	GPS is there but Position unknown.  Could be temporary.
+  *		DWFIX_2D	Valid position.   We don't know if it is really 2D or 3D.
+@@ -597,10 +579,13 @@ dwfix_t dwgpsnmea_gprmc (char *sentence, int quiet, double *odlat, double *odlon
+  *		
+  *					Left undefined if not valid.
+  *
++ * Note:	GGA has altitude but not course and speed so we need to use both.
++ *
+  * Returns:	DWFIX_ERROR	Parse error.
+  *		DWFIX_NO_FIX	GPS is there but Position unknown.  Could be temporary.
+  *		DWFIX_2D	Valid position.   We don't know if it is really 2D or 3D.
+  *				Take more cautious value so we don't try using altitude.
++ *		DWFIX_3D	Valid 3D position.
+  *
+  * Examples:	$GPGGA,001429.00,,,,,0,00,99.99,,,,,,*68
+  *		$GPGGA,212407.000,4237.1505,N,07120.8602,W,0,00,,,M,,M,,*58
+@@ -609,9 +594,6 @@ dwfix_t dwgpsnmea_gprmc (char *sentence, int quiet, double *odlat, double *odlon
+  *
+  *--------------------------------------------------------------------*/
+ 
+-
+-// TODO: in progress...
+-
+ dwfix_t dwgpsnmea_gpgga (char *sentence, int quiet, double *odlat, double *odlon, float *oalt, int *onsat)
+ {
+ 	char stemp[NMEA_MAX_LEN];	/* Make copy because parsing is destructive. */
+@@ -708,8 +690,7 @@ dwfix_t dwgpsnmea_gpgga (char *sentence, int quiet, double *odlat, double *odlon
+ 	  return (DWFIX_ERROR);
+ 	}
+ 
+-
+-	// TODO: num sat...
++	// TODO: num sat...  Why would we care?
+ 
+ /* 
+  * We can distinguish between 2D & 3D fix by presence 
+-- 
+2.37.0
+
